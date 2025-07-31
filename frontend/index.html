@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Energy Recorder</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .record-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .record-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(238, 90, 36, 0.3);
+        }
+        
+        .record-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .stop-btn {
+            background: linear-gradient(45deg, #feca57, #ff9ff3);
+            color: #333;
+        }
+        
+        .stop-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(254, 202, 87, 0.3);
+        }
+        
+        .energy-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .energy-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            width: 0%;
+            transition: width 0.1s ease;
+            border-radius: 15px;
+        }
+        
+        .threshold-line {
+            position: absolute;
+            left: 30%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff4757;
+            z-index: 1;
+        }
+        
+        .status {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .recordings {
+            margin-top: 30px;
+        }
+        
+        .recording-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .play-btn {
+            background: linear-gradient(45deg, #48dbfb, #0abde3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .download-btn {
+            background: linear-gradient(45deg, #26de81, #20bf6b);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        
+        .download-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .recording-info {
+            flex: 1;
+        }
+        
+        .waveform {
+            width: 100%;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .wave-bar {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to top, #00d2ff, #3a7bd5);
+            transition: height 0.1s ease;
+        }
+        
+        .settings {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .setting-row label {
+            min-width: 150px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 5px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00d2ff;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Smart Audio Recorder</h1>
+        
+        <div class="settings">
+            <div class="setting-row">
+                <label>Energy Threshold:</label>
+                <input type="range" id="thresholdSlider" min="10" max="80" value="30">
+                <span id="thresholdValue">30%</span>
+            </div>
+            <div class="setting-row">
+                <label>Silence Duration:</label>
+                <input type="range" id="silenceDurationSlider" min="500" max="5000" value="1000">
+                <span id="silenceDurationValue">1.0s</span>
+            </div>
+        </div>
+        
+        <div class="energy-display">
+            <h3>Audio Energy Level</h3>
+            <div class="energy-bar">
+                <div class="energy-fill" id="energyFill"></div>
+                <div class="threshold-line" id="thresholdLine"></div>
+            </div>
+            <div>Current: <span id="energyLevel">0</span>% | Threshold: <span id="thresholdDisplay">30</span>%</div>
+        </div>
+        
+        <div class="waveform" id="waveform"></div>
+        
+        <div class="controls">
+            <button class="record-btn" id="recordBtn">🎤 Start Listening</button>
+            <button class="stop-btn" id="stopBtn" disabled>⏹️ Stop Listening</button>
+        </div>
+        
+        <div class="status" id="status">Ready to listen for voice</div>
+        
+        <div class="recordings" id="recordings">
+            <h3>📁 Recorded Audio Chunks</h3>
+        </div>
+    </div>
+
+    <script>
+        class AudioEnergyRecorder {
+            constructor() {
+                this.audioContext = null;
+                this.mediaStream = null;
+                this.audioWorkletNode = null;
+                this.mediaRecorder = null;
+                this.recordedChunks = [];
+                this.recordingsList = [];
+                this.isRecording = false;
+                this.isListening = false;
+                this.energyThreshold = 30;
+                this.silenceDuration = 1000;
+                this.silenceStartTime = null;
+                this.currentEnergyLevel = 0;
+                this.voiceStartThreshold = 35; // Slightly higher threshold to start recording
+                this.websocket = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.createWaveformBars();
+                this.initializeWebSocket();
+            }
+            
+            initializeElements() {
+                this.recordBtn = document.getElementById('recordBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.status = document.getElementById('status');
+                this.energyFill = document.getElementById('energyFill');
+                this.energyLevel = document.getElementById('energyLevel');
+                this.thresholdDisplay = document.getElementById('thresholdDisplay');
+                this.thresholdLine = document.getElementById('thresholdLine');
+                this.recordingsContainer = document.getElementById('recordings');
+                this.waveform = document.getElementById('waveform');
+                this.thresholdSlider = document.getElementById('thresholdSlider');
+                this.thresholdValue = document.getElementById('thresholdValue');
+                this.silenceDurationSlider = document.getElementById('silenceDurationSlider');
+                this.silenceDurationValue = document.getElementById('silenceDurationValue');
+            }
+            
+            setupEventListeners() {
+                this.recordBtn.addEventListener('click', () => this.startListening());
+                this.stopBtn.addEventListener('click', () => this.stopListening());
+                
+                this.thresholdSlider.addEventListener('input', (e) => {
+                    this.energyThreshold = parseInt(e.target.value);
+                    this.voiceStartThreshold = Math.max(this.energyThreshold + 5, 35); // Always slightly higher
+                    this.thresholdValue.textContent = `${this.energyThreshold}%`;
+                    this.thresholdDisplay.textContent = this.energyThreshold;
+                    this.thresholdLine.style.left = `${this.energyThreshold}%`;
+                });
+                
+                this.silenceDurationSlider.addEventListener('input', (e) => {
+                    this.silenceDuration = parseInt(e.target.value);
+                    this.silenceDurationValue.textContent = `${(this.silenceDuration / 1000).toFixed(1)}s`;
+                });
+            }
+            
+            createWaveformBars() {
+                const numBars = 100;
+                for (let i = 0; i < numBars; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'wave-bar';
+                    bar.style.left = `${(i / numBars) * 100}%`;
+                    this.waveform.appendChild(bar);
+                }
+                this.waveBars = this.waveform.querySelectorAll('.wave-bar');
+            }
+            
+            updateWaveform() {
+                const height = Math.max(2, (this.currentEnergyLevel / 100) * 60);
+                const randomIndex = Math.floor(Math.random() * this.waveBars.length);
+                this.waveBars[randomIndex].style.height = `${height}px`;
+                
+                // Fade out old bars
+                this.waveBars.forEach(bar => {
+                    const currentHeight = parseFloat(bar.style.height) || 0;
+                    bar.style.height = `${Math.max(1, currentHeight * 0.95)}px`;
+                });
+            }
+            
+            async startListening() {
+                try {
+                    this.status.textContent = 'Requesting microphone access...';
+                    
+                    this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            channelCount: 1,
+                            sampleRate: 44100,
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        } 
+                    });
+                    
+                    this.audioContext = new AudioContext();
+                    
+                    // Create and load AudioWorklet
+                    const workletCode = `
+                        class EnergyAnalyzerProcessor extends AudioWorkletProcessor {
+                            constructor() {
+                                super();
+                                this.bufferSize = 1024;
+                                this.buffer = new Float32Array(this.bufferSize);
+                                this.bufferIndex = 0;
+                            }
+                            
+                            process(inputs, outputs, parameters) {
+                                const input = inputs[0];
+                                if (input.length > 0) {
+                                    const channelData = input[0];
+                                    
+                                    for (let i = 0; i < channelData.length; i++) {
+                                        this.buffer[this.bufferIndex] = channelData[i];
+                                        this.bufferIndex = (this.bufferIndex + 1) % this.bufferSize;
+                                        
+                                        if (this.bufferIndex === 0) {
+                                            // Calculate RMS energy
+                                            let sum = 0;
+                                            for (let j = 0; j < this.bufferSize; j++) {
+                                                sum += this.buffer[j] * this.buffer[j];
+                                            }
+                                            const rms = Math.sqrt(sum / this.bufferSize);
+                                            const energy = Math.min(100, rms * 100 * 10); // Scale and cap at 100%
+                                            
+                                            this.port.postMessage({ type: 'energy', value: energy });
+                                        }
+                                    }
+                                }
+                                return true;
+                            }
+                        }
+                        
+                        registerProcessor('energy-analyzer', EnergyAnalyzerProcessor);
+                    `;
+                    
+                    const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
+                    const workletUrl = URL.createObjectURL(workletBlob);
+                    
+                    await this.audioContext.audioWorklet.addModule(workletUrl);
+                    URL.revokeObjectURL(workletUrl);
+                    
+                    // Create audio nodes
+                    const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+                    this.audioWorkletNode = new AudioWorkletNode(this.audioContext, 'energy-analyzer');
+                    
+                    // Connect nodes
+                    source.connect(this.audioWorkletNode);
+                    
+                    // Listen for energy updates
+                    this.audioWorkletNode.port.onmessage = (event) => {
+                        if (event.data.type === 'energy') {
+                            this.handleEnergyUpdate(event.data.value);
+                        }
+                    };
+                    
+                    this.isListening = true;
+                    this.recordBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.status.textContent = '🎧 Listening for voice... Start speaking to begin recording!';
+                    
+                } catch (error) {
+                    console.error('Error starting listening:', error);
+                    this.status.textContent = `Error: ${error.message}`;
+                }
+            }
+            
+            handleEnergyUpdate(energy) {
+                this.currentEnergyLevel = energy;
+                this.energyFill.style.width = `${energy}%`;
+                this.energyLevel.textContent = Math.round(energy);
+                this.updateWaveform();
+                
+                if (!this.isListening) return;
+                
+                // Auto-start recording when voice is detected
+                if (!this.isRecording && energy > this.voiceStartThreshold) {
+                    this.beginRecording();
+                    this.silenceStartTime = null;
+                    return;
+                }
+                
+                // Handle silence detection during recording
+                if (this.isRecording) {
+                    if (energy < this.energyThreshold) {
+                        if (this.silenceStartTime === null) {
+                            this.silenceStartTime = Date.now();
+                            this.status.textContent = '🔴 Recording... Silence detected, will stop soon if no voice';
+                        } else if (Date.now() - this.silenceStartTime > this.silenceDuration) {
+                            this.status.textContent = '⏹️ Silence timeout reached. Stopping recording...';
+                            this.stopCurrentRecording();
+                        }
+                    } else {
+                        this.silenceStartTime = null;
+                        this.status.textContent = '🔴 Recording... Voice detected, continuing...';
+                    }
+                }
+            }
+            
+            beginRecording() {
+                if (!this.mediaStream) return;
+                
+                // Setup MediaRecorder
+                this.mediaRecorder = new MediaRecorder(this.mediaStream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                this.recordedChunks = [];
+                
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        this.recordedChunks.push(event.data);
+                    }
+                };
+                
+                this.mediaRecorder.onstop = () => {
+                    this.createAudioBlob();
+                };
+                
+                this.mediaRecorder.start(100); // Collect data every 100ms
+                this.isRecording = true;
+                this.status.textContent = '🔴 Auto-Recording started! Keep speaking...';
+            }
+            
+            stopCurrentRecording() {
+                if (!this.isRecording) return;
+                
+                this.isRecording = false;
+                this.silenceStartTime = null;
+                
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                }
+                
+                // Return to listening mode
+                this.status.textContent = '🎧 Recording saved! Listening for next voice...';
+            }
+            
+            stopListening() {
+                this.isListening = false;
+                
+                // Stop current recording if active
+                if (this.isRecording) {
+                    this.stopCurrentRecording();
+                }
+                
+                this.silenceStartTime = null;
+                
+                if (this.audioWorkletNode) {
+                    this.audioWorkletNode.disconnect();
+                    this.audioWorkletNode = null;
+                }
+                
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+                
+                if (this.mediaStream) {
+                    this.mediaStream.getTracks().forEach(track => track.stop());
+                    this.mediaStream = null;
+                }
+                
+                this.recordBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.status.textContent = 'Stopped listening. Click "Start Listening" to begin again.';
+            }
+            
+            createAudioBlob() {
+                if (this.recordedChunks.length === 0) {
+                    this.status.textContent = 'No audio data recorded';
+                    return;
+                }
+                
+                const blob = new Blob(this.recordedChunks, { type: 'audio/webm;codecs=opus' });
+                const duration = this.recordedChunks.length * 0.1; // Approximate duration
+                
+                const recording = {
+                    id: Date.now(),
+                    blob: blob,
+                    url: URL.createObjectURL(blob),
+                    duration: duration.toFixed(1),
+                    timestamp: new Date().toLocaleTimeString(),
+                    size: (blob.size / 1024).toFixed(1)
+                };
+                
+                this.recordingsList.push(recording);
+                this.displayRecording(recording);
+                
+                // Send blob to backend via WebSocket
+                this.sendAudioToBackend(blob);
+                
+                // Only show this message if we're not still listening
+                if (this.isListening) {
+                    this.status.textContent = `🎧 Recording saved! (${recording.duration}s) Listening for next voice...`;
+                } else {
+                    this.status.textContent = `Recording saved! Duration: ${recording.duration}s`;
+                }
+            }
+            
+            displayRecording(recording) {
+                const item = document.createElement('div');
+                item.className = 'recording-item';
+                item.innerHTML = `
+                    <div class="recording-info">
+                        <strong>Recording ${this.recordingsList.length}</strong><br>
+                        <small>Time: ${recording.timestamp} | Duration: ${recording.duration}s | Size: ${recording.size}KB</small>
+                    </div>
+                    <button class="play-btn" onclick="recorder.playRecording('${recording.id}')">▶️ Play</button>
+                    <button class="download-btn" onclick="recorder.downloadRecording('${recording.id}')">💾 Download</button>
+                `;
+                
+                this.recordingsContainer.appendChild(item);
+            }
+            
+            playRecording(id) {
+                const recording = this.recordingsList.find(r => r.id == id);
+                if (recording) {
+                    const audio = new Audio(recording.url);
+                    audio.play();
+                }
+            }
+            
+            downloadRecording(id) {
+                const recording = this.recordingsList.find(r => r.id == id);
+                if (recording) {
+                    const a = document.createElement('a');
+                    a.href = recording.url;
+                    a.download = `recording_${recording.id}.webm`;
+                    a.click();
+                }
+            }
+            
+            initializeWebSocket() {
+                this.websocket = new WebSocket('ws://localhost:8000/ws');
+                
+                this.websocket.onopen = () => {
+                    console.log('WebSocket connected');
+                };
+                
+                this.websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'audio_response') {
+                        this.playBase64Audio(data.data);
+                    } else if (data.type === 'error') {
+                        console.error('Backend error:', data.message);
+                        this.status.textContent = `Error: ${data.message}`;
+                    }
+                };
+                
+                this.websocket.onclose = () => {
+                    console.log('WebSocket disconnected');
+                };
+                
+                this.websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+            }
+            
+            async sendAudioToBackend(blob) {
+                if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    try {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const base64Data = reader.result.split(',')[1];
+                            const message = {
+                                type: 'audio_blob',
+                                data: base64Data
+                            };
+                            this.websocket.send(JSON.stringify(message));
+                        };
+                        reader.readAsDataURL(blob);
+                    } catch (error) {
+                        console.error('Error sending audio to backend:', error);
+                    }
+                }
+            }
+            
+            playBase64Audio(base64Data) {
+                try {
+                    // Create a blob from base64 data
+                    const binaryData = atob(base64Data);
+                    const arrayBuffer = new ArrayBuffer(binaryData.length);
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    
+                    for (let i = 0; i < binaryData.length; i++) {
+                        uint8Array[i] = binaryData.charCodeAt(i);
+                    }
+                    
+                    // Create audio blob and play it
+                    const audioBlob = new Blob([uint8Array], { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    
+                    this.status.textContent = '🔊 Playing AI response...';
+                    
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        if (this.isListening) {
+                            this.status.textContent = '🎧 Listening for next voice...';
+                        } else {
+                            this.status.textContent = 'AI response finished playing.';
+                        }
+                    };
+                    
+                    audio.onerror = (error) => {
+                        console.error('Audio playback error:', error);
+                        URL.revokeObjectURL(audioUrl);
+                        this.status.textContent = 'Error playing audio response.';
+                    };
+                    
+                    audio.play().catch(error => {
+                        console.error('Error playing audio:', error);
+                        URL.revokeObjectURL(audioUrl);
+                        this.status.textContent = 'Error playing audio response.';
+                    });
+                    
+                } catch (error) {
+                    console.error('Error processing base64 audio:', error);
+                    this.status.textContent = 'Error processing audio response.';
+                }
+            }
+        }
+        
+        // Initialize the recorder
+        const recorder = new AudioEnergyRecorder();
+    </script>
+</body>
+</html>
