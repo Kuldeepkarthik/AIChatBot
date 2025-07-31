@@ -11,7 +11,7 @@ Real-time audio recording and AI-powered text-to-speech response system using Fa
 - Auto-start/stop recording based on voice activity
 
 ## Setup
-
+1. Unwrap all 3 .rar files before procedding with other steps.
 ### Backend Setup
 
 1. Navigate to the backend directory:
